@@ -4,6 +4,7 @@ import os.path as osp
 
 import numpy as np
 import sacred
+from comet_ml import Experiment
 import torch
 import yaml
 from torch.utils.data import DataLoader
@@ -36,10 +37,15 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
 
     sacred.commands.print_config(_run)
 
+    experiment = Experiment(auto_metric_logging=False)
+    experiment.log_code("./src/tracktor/reid/solver.py")
+    experiment.add_tag("reid")
+
     output_dir = osp.join(get_output_dir(module_name), name)
     tb_dir = osp.join(get_tb_dir(module_name), name)
 
     sacred_config = osp.join(output_dir, 'sacred_config.yaml')
+    experiment.log_asset(sacred_config, 'sacred_config.yaml')
 
     if not osp.exists(output_dir):
         os.makedirs(output_dir)
@@ -92,6 +98,7 @@ def main(seed, module_name, name, db_train, db_val, solver_cfg,
         lr_scheduler_lambda=lr_scheduler,
         logger=_log.info,
         optim=solver_cfg['optim'],
-        optim_args=solver_cfg['optim_args'])
+        optim_args=solver_cfg['optim_args'],
+        experiment=experiment)
     solver.train(
         network, db_train, db_val, solver_cfg['num_epochs'], solver_cfg['log_nth'])
