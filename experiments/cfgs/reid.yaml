@@ -2,6 +2,7 @@ name: test
 module_name: reid
 desription:
 seed: 12345
+comet: False
 # smth like MOT_train, KITTI_train_Pedestrian
 db_train:
   split: mot_reid_train

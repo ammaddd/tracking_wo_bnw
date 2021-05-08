@@ -16,7 +16,7 @@ import tensorboardX as tb
 class Solver(object):
 
     def __init__(self, output_dir, tb_dir, optim='SGD', optim_args={},
-                 lr_scheduler_lambda=None, logger=print, experiment=None):
+                 lr_scheduler_lambda=None, logger=print, comet_logger=None):
         self.optim_args = optim_args
         self.logger = logger
 
@@ -43,7 +43,7 @@ class Solver(object):
             'torch': torch.random.get_rng_state()}
 
         self.writer = tb.SummaryWriter(self.tb_dir)
-        self.experiment = experiment
+        self.comet_logger = comet_logger
 
         self._reset_histories()
 
@@ -59,7 +59,7 @@ class Solver(object):
         filename = f"{name}.pth"
         filename = os.path.join(self.output_dir, filename)
         torch.save(model.state_dict(), filename)
-        self.experiment.log_model("reid", filename)
+        self.comet_logger.log_model("reid", filename)
         self.logger('Wrote snapshot to: {:s}'.format(filename))
 
     def train(self, model, train_loader, val_loader=None, num_epochs=10, log_nth=0):
@@ -99,8 +99,8 @@ class Solver(object):
                 scheduler.step()
                 self.writer.add_scalar('TRAIN/LR', scheduler.get_last_lr(), epoch + 1)
                 self.logger(f"[*] LR: {scheduler.get_lr()}")
-                self.experiment.log_metric('TRAIN/LR', scheduler.get_last_lr(),
-                                           epoch=epoch)
+                self.comet_logger.log_metric('TRAIN/LR', scheduler.get_last_lr(),
+                                             epoch=epoch)
 
             now = time.time()
 
@@ -127,13 +127,13 @@ class Solver(object):
                         train_loss = np.mean(last_log_nth_losses)
                         self.logger(f'{k}: {train_loss:.3f}')
                         self.writer.add_scalar(f'TRAIN/{k}', train_loss, i + epoch * iter_per_epoch)
-                        self.experiment.log_metric(f'TRAIN/{k}', train_loss, step=i + epoch * iter_per_epoch,
-                                                   epoch=epoch+1)
+                        self.comet_logger.log_metric(f'TRAIN/{k}', train_loss, step=i + epoch * iter_per_epoch,
+                                                     epoch=epoch+1)
 
-                    self.experiment.log_image(batch[0][0][0].detach().cpu().numpy(),
-                                              name="reid_train_images",
-                                              image_channels="first",
-                                              step=i + epoch * iter_per_epoch)
+                    self.comet_logger.log_image(batch[0][0][0].detach().cpu().numpy(),
+                                                name="reid_train_images",
+                                                image_channels="first",
+                                                step=i + epoch * iter_per_epoch)
 
             # VALIDATION
             if val_loader:
@@ -174,7 +174,7 @@ class Solver(object):
 
                     self.logger(f'{k}: {val_loss:.3f}')
                     self.writer.add_scalar(f'VAL/{k}', val_loss, epoch + 1)
-                    self.experiment.log_metric(f'VAL/{k}', val_loss, epoch=epoch+1)
+                    self.comet_logger.log_metric(f'VAL/{k}', val_loss, epoch=epoch+1)
 
                 #blobs_val = data_layer_val.forward()
                 #tracks_val = model.val_predict(blobs_val)
